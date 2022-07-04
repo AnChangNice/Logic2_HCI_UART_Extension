@@ -66,7 +66,7 @@ def get_time_stamp(iso_8601_str):
     time_str_s = time_str_a + time_str_b
     d = datetime.strptime(time_str_s, "%Y-%m-%dT%H:%M:%S.%f%z")
 
-    time_stamp_us = int(d.timestamp() * 1000 * 1000) + 0x00dcddb30f2f8000
+    time_stamp_us = int(d.timestamp() * 1000 * 1000) + 0x00dcddb30f2f8000 # add 1970 years with us unit.
 
     return time_stamp_us
     
