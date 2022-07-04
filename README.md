@@ -1,2 +1,13 @@
-# Logic2_HCI_UART_Extension
-A HCI uart extension for Saleae Logic 2, and a script convert exported data to btsnoop file.
+
+  # UART HCI
+  
+## Getting started
+
+1. Build your extension by updating the Python files for your needs
+2. Create a public Github repo and push your code 
+3. Update this README
+4. Open the Logic app and publish your extension
+5. Create a Github release
+6. Debug your hardware like you've never done before :)
+
+  

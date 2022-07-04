@@ -1,0 +1,13 @@
+{
+  "name": "UART HCI",
+  "apiVersion": "1.0.0",
+  "author": "Chang An",
+  "version": "0.0.1",
+  "description": "Get HCI packets for UART data stream.",
+  "extensions": {
+    "UART HCI": {
+      "type": "HighLevelAnalyzer",
+      "entryPoint": "HighLevelAnalyzer.Hla"
+    }
+  }
+}
