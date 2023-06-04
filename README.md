@@ -23,7 +23,7 @@ UART_HCI foler include a Logic2 extension analyzer could findout HCI packets fro
 ## 5, Export them both to CSV with "Use ISO8601 timestamps".
 ![image](doc/export.png)
 
-## 6, Run command "python csv2btsnoop.py hci.csv btsnoop.log" to get the btsnoop file.
+## 6, Run command "python csv2btsnoop.py hci.csv btsnoop.log" to get the btsnoop file. Or just drop csv file to csv2btsnoop.bat to generate btsnoop file.
 ![image](doc/csv2btsnoop.png)
 
 ## Now you could review the btsnoop log in Wireshark or any other tools.

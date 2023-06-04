@@ -2,6 +2,7 @@ import csv
 import sys
 from datetime import datetime
 import struct
+import os
 
 help = """
 usage: python [csv input] [btsnoop output]
@@ -75,17 +76,23 @@ if __name__ == "__main__":
     # get args
     args = sys.argv[1:]
 
-    if len(args) == 1 and (args[0] == 'help' or args[0] == '-h'):
+    if len(args) == 1:
+        input_csv_path = args[0]
+        output_btsnoop_path = input_csv_path[:-4] + '.log'
+    elif len(args) == 2:
+        input_csv_path = args[0]
+        output_btsnoop_path = args[1]
+    else:
         print(help)
         sys.exit()
 
-    if len(args) != 2:
-        print("Invalid args!")
-        print(help)
+    if not os.path.exists(input_csv_path):
+        print("input path not exist!")
         sys.exit()
-
-    input_csv_path = args[0]
-    output_btsnoop_path = args[1]
+    
+    if os.path.exists(output_btsnoop_path):
+        print("input path already exist!")
+        sys.exit()
 
     input_csv = open(input_csv_path, 'r')
 
