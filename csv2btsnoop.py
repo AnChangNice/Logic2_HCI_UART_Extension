@@ -19,7 +19,7 @@ class BTSNOOP():
     def save_packet(self, time_stamp_us, direction_h_c, data_array):
 
         # Original Length
-        Original_Length = 4 + len(data_array) + 4 + 4 + 8
+        Original_Length = len(data_array)
 
         # Included Length
         Included_Length = len(data_array)
