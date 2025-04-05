@@ -65,7 +65,7 @@ class Hla(HighLevelAnalyzer):
         elif hci_id == self.HCI_ID_EVT:
             total_len = hci_header[2]
         elif hci_id == self.HCI_ID_ISO:
-            total_len = hci_header[3] | (hci_header[4] << 8) # little endian
+            total_len = hci_header[3] | ((hci_header[4] & 0x3f) << 8) # little endian
 
         return total_len
 
