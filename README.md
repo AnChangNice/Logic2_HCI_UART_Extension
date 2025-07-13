@@ -4,7 +4,38 @@ A HCI uart extension for Saleae Logic 2, and a script convert exported data to b
 # Working flow
 UART_HCI foler include a Logic2 extension analyzer could findout HCI packets from uart stream, but the analyzer don't know the data direction, so the user need select the correct role for them. The analyzer result will shown in data table's data colume, and only the UART HCI's result should be keeped. Then you could export to a CSV file with ISO timestamp. Last, run csv2btsnoop.py script to convert the csv to btsnoop log file.
 
-# Usage
+# Automation Script
+There is a python scritp can automaticly capture and export btsnoop: `logic2_analyzer.py`
+
+Install dependency: `pip install -r requirement`
+
+Here below is a example:
+
+```python
+import time
+from logic2_analyzer import Logic2_Analyzer
+
+analyzer = Logic2_Analyzer()
+
+analyzer.set_save_folder('./log')
+
+analyzer.capture_config(digital_channels=[0, 1, 2, 3, 4, 5], 
+                        digital_sample_rate=12500000)
+
+
+analyzer.capture_start()
+time.sleep(3)
+analyzer.capture_stop()
+
+analyzer.export_btsnoop('ums', tx_channel=0, rx_channel=1, bit_rate=3000000)
+analyzer.export_btsnoop('umr', tx_channel=2, rx_channel=3, bit_rate=3000000)
+
+analyzer.capture_save()
+
+analyzer.close()
+```
+
+# How to use in logic2
 ## 1, Cauture HCI TX/RX data and decode them both with "Async Serial"
 ![image](doc/analyzer_serial.png)
 

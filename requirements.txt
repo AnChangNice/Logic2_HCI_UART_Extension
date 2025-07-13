@@ -1,0 +1,3 @@
+grpcio==1.73.1
+logic2-automation==1.0.7
+protobuf==6.31.1
