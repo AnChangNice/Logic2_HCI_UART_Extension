@@ -1,0 +1,1 @@
+python logic2_analyzer_gui.py
