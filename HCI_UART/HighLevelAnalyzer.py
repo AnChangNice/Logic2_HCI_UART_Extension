@@ -7,7 +7,9 @@ from saleae.analyzers import HighLevelAnalyzer, AnalyzerFrame, StringSetting, Nu
 # High level analyzers must subclass the HighLevelAnalyzer class.
 class Hla(HighLevelAnalyzer):
 
-    role_choice = ChoicesSetting(choices=("Host->Controller", "Controller->Host"))
+    s1_role_choice = ChoicesSetting(label="Role Choice", choices=["Host->Controller", "Controller->Host"])
+    s2_decode_mode = ChoicesSetting(label="Decode Mode", choices=["Always", "Trigger"])
+    s3_decode_trigger_frame = StringSetting(label="Decode Trigger Frame") # HCI RESET: 01 03 0C 00, RES: 04 0E 04 01 03 0C 00
 
     # An optional list of types this analyzer produces, providing a way to customize the way frames are displayed in Logic 2.
     result_types = {
@@ -40,8 +42,6 @@ class Hla(HighLevelAnalyzer):
     }
 
     def __init__(self):
-        print("Settings:", self.role_choice)
-
         # receive state
         self.state = self.HCI_PACK_IDEL
 
@@ -50,6 +50,25 @@ class Hla(HighLevelAnalyzer):
 
         # uart stream
         self.uart_frames = []
+
+        # trigger stream
+        self.decode_trigger_frame = []
+        self.triggered = True
+        self.trigger_stream = []
+        if self.s2_decode_mode == "Trigger" and len(self.s3_decode_trigger_frame) > 0:
+            self.triggered = False
+            self.__decode_trigger_set()
+
+    def __decode_trigger_set(self):
+        frame_str = self.s3_decode_trigger_frame.split(' ')
+        frame = [int(x, 16) for x in frame_str]
+        for f in frame:
+            if f in range(0x00, 0xFF+1):
+                self.decode_trigger_frame.append(f)
+            else:
+                print(f"Invalid trigger frame byte: {f}")
+                self.decode_trigger_frame = []
+                break
 
     def __payload_len(self, hci_header):
         hci_id = hci_header[0]
@@ -126,13 +145,46 @@ class Hla(HighLevelAnalyzer):
         return start_time, end_time, pack_data
 
     def decode(self, frame: AnalyzerFrame):
+        # Check if decode mode is set to "Always" or if trigger frame matches
+        if self.s2_decode_mode == "Trigger" and not self.triggered:
+            # append the buffer
+            self.trigger_stream.append(frame)
+            
+            # skip if the length not enough
+            if len(self.trigger_stream) < len(self.decode_trigger_frame):
+                return
+            
+            # remove the first one if length is bigger than the length
+            if len(self.trigger_stream) > len(self.decode_trigger_frame):
+                self.trigger_stream = self.trigger_stream[1:]
+            
+            # check if it match with the trigger frame
+            frame_data = [self.__get_frame_data(x) for x in self.trigger_stream]
+            if frame_data != self.decode_trigger_frame:
+                return
+
+            self.triggered = True
         
         # try get one full pack
-        start_time, end_time, pack_data = self.__get_hci_pack(frame)
+        if len(self.trigger_stream) > 0:
+            # add to the tail of the stream
+            self.trigger_stream.append(frame)
+            while len(self.trigger_stream) > 0:
+                # get the first frame then remove it from stream
+                trigger_frame = self.trigger_stream[0]
+                self.trigger_stream = self.trigger_stream[1:]
+                # feed first frame into packet processing
+                start_time, end_time, pack_data = self.__get_hci_pack(trigger_frame)
+                # if find one packet, then break the loop
+                if pack_data != None:
+                    break
+                # if not find, then continue processing next frame
+        else:
+            start_time, end_time, pack_data = self.__get_hci_pack(frame)
 
         # Return the data frame itself
         if pack_data != None:
-            if self.role_choice == "Host->Controller":
+            if self.s1_role_choice == "Host->Controller":
                 pack_data = "H->C:" + pack_data
             else:
                 pack_data = "C->H:" + pack_data

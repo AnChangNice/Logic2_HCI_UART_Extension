@@ -121,7 +121,7 @@ class Logic2_Analyzer:
         self.manager.close()
 
 
-    def export_btsnoop(self, name, tx_channel, rx_channel, bit_rate):
+    def export_btsnoop(self, name, tx_channel, rx_channel, bit_rate, trigger_frame_tx="", trigger_frame_rx=""):
         uart_tx = self.capture.add_analyzer(
             "Async Serial",
             label=f"{name}_UART_TX",
@@ -146,7 +146,9 @@ class Logic2_Analyzer:
             input_analyzer=uart_tx,
             settings={
                 "input analyzer": f"{name}_UART_TX",
-                "role_choice": "Host->Controller",
+                "s1_role_choice": "Host->Controller",
+                "s2_decode_mode": "Always" if trigger_frame_tx == "" else "Trigger",
+                "s3_decode_trigger_frame": trigger_frame_tx,
                 "show in protocol results table": True
             },
             label=f"{name}_HCI_TX"
@@ -158,7 +160,9 @@ class Logic2_Analyzer:
             input_analyzer=uart_rx,
             settings={
                 "input analyzer": f"{name}_UART_RX",
-                "role_choice": "Controller->Host",
+                "s1_role_choice": "Controller->Host",
+                "s2_decode_mode": "Always" if trigger_frame_rx == "" else "Trigger",
+                "s3_decode_trigger_frame": trigger_frame_rx,
                 "show in protocol results table": True
             },
             label=f"{name}_HCI_RX"
