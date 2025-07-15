@@ -140,8 +140,10 @@ class Logic2_Analyzer:
             }
         )
 
+        HCI_UART_PATH = os.path.dirname(__file__) + '/HCI_UART'
+
         hci_tx = self.capture.add_high_level_analyzer(
-            extension_directory=os.path.abspath("./HCI_UART"),
+            extension_directory=HCI_UART_PATH,
             name="UART HCI",
             input_analyzer=uart_tx,
             settings={
@@ -155,7 +157,7 @@ class Logic2_Analyzer:
         )
 
         hci_rx = self.capture.add_high_level_analyzer(
-            extension_directory=os.path.abspath("./HCI_UART"),
+            extension_directory=HCI_UART_PATH,
             name="UART HCI",
             input_analyzer=uart_rx,
             settings={
@@ -178,7 +180,7 @@ class Logic2_Analyzer:
             iso8601_timestamp=True
         )
         
-        generate_btsnoop_script = os.path.abspath("./csv2btsnoop.py")
+        generate_btsnoop_script = os.path.dirname(__file__) + "/csv2btsnoop.py"
         output_btsnoop_path = self.save_folder + '/' + f"{prefix}_{name}_btsnoop.log"
         
         generate_btsnoop_cmd = f"python {generate_btsnoop_script} {csv_file_path} {output_btsnoop_path}"
