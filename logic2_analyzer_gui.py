@@ -108,13 +108,19 @@ class GUI:
         frame_row_4 = ttk.Frame(frame_hci_uart_add)
         frame_row_4.pack(fill=tk.X, pady=5)
 
-        label_hci_uart_port_name = ttk.Label(frame_row_1, text="     Name:")
+        frame_row_5 = ttk.Frame(frame_hci_uart_add)
+        frame_row_5.pack(fill=tk.X, pady=5)
+
+        frame_row_6 = ttk.Frame(frame_hci_uart_add)
+        frame_row_6.pack(fill=tk.X, pady=5)
+
+        label_hci_uart_port_name = ttk.Label(frame_row_1, text="            Name:")
         label_hci_uart_port_name.pack(side='left')
         
         self.entry_hci_uart_port_name = ttk.Entry(frame_row_1, width=20)
         self.entry_hci_uart_port_name.pack(side='left')
         
-        label_hci_uart_port_tx = ttk.Label(frame_row_2, text="          TX:")
+        label_hci_uart_port_tx = ttk.Label(frame_row_2, text="                   TX:")
         label_hci_uart_port_tx.pack(side='left')
         
         self.combo_hci_uart_port_selector_tx = ttk.Combobox(frame_row_2, width=3, values=[i for i in range(16)])
@@ -126,15 +132,33 @@ class GUI:
         self.combo_hci_uart_port_selector_rx = ttk.Combobox(frame_row_2, width=3, values=[i for i in range(16)])
         self.combo_hci_uart_port_selector_rx.pack(side='left')
 
-        label_hci_uart_port_baudrate = ttk.Label(frame_row_3, text="Baudrate:")
+        label_hci_uart_port_baudrate = ttk.Label(frame_row_3, text="       Baudrate:")
         label_hci_uart_port_baudrate.pack(side='left')
 
         self.entry_hci_uart_port_baudrate = ttk.Entry(frame_row_3, width=20)
         self.entry_hci_uart_port_baudrate.pack(side='left')
 
+        self.tx_trigger = tk.BooleanVar(value=False)
+        check_button_tx_trigger = ttk.Checkbutton(frame_row_4, text=f"TX Trigger", variable=self.tx_trigger)
+        check_button_tx_trigger.pack(side='left')
+
+        tx_trigger_vlidate_cmd = (root.register(self.tx_trigger_validate), '%P')
+        self.tx_trigger_frame_var = tk.StringVar(value="01 03 0C 00") # HCI RESET CMD: 01 03 0C 00
+        entry_tx_trigger = ttk.Entry(frame_row_4, width=40, textvariable=self.tx_trigger_frame_var, validate='key', validatecommand=tx_trigger_vlidate_cmd)
+        entry_tx_trigger.pack(side='left')
+
+        self.rx_trigger = tk.BooleanVar(value=False)
+        check_button_rx_trigger = ttk.Checkbutton(frame_row_5, text=f"RX Trigger", variable=self.rx_trigger)
+        check_button_rx_trigger.pack(side='left')
+
+        rx_trigger_vlidate_cmd = (root.register(self.rx_trigger_validate), '%P')
+        self.rx_trigger_frame_var = tk.StringVar(value="04 0E 04 01 03 0C 00") # HCI RESET RES: 04 0E 04 01 03 0C 00
+        entry_rx_trigger = ttk.Entry(frame_row_5, width=40, textvariable=self.rx_trigger_frame_var, validate='key', validatecommand=rx_trigger_vlidate_cmd)
+        entry_rx_trigger.pack(side='left')
+
         ## HCI UART Port Add
-        btn_uart_port_add = ttk.Button(frame_row_4, text="Add", command=self.hci_uart_port_add)
-        btn_uart_port_add.pack(side='left', padx=60, ipadx=30)
+        btn_uart_port_add = ttk.Button(frame_row_6, text="Add", command=self.hci_uart_port_add)
+        btn_uart_port_add.pack(side='left', padx=75, ipadx=30)
 
         ## Listbox
         frame_hci_uart_list = ttk.LabelFrame(root, text="Config List")
@@ -142,7 +166,7 @@ class GUI:
 
         self.hci_uart_listbox = tk.Listbox(frame_hci_uart_list, height=4)
         self.hci_uart_listbox.pack(padx=5, fill='both')
-        self.hci_uart_listbox.insert(1, "hci_uart: tx 0, rx 1, rate 3000000")
+        self.hci_uart_listbox.insert(1, "hci_uart: tx 0, rx 1, rate 3000000, tx_trigger None, rx_trigger None")
 
         btn_uart_port_remove = ttk.Button(frame_hci_uart_list, text="Remove", command=self.hci_uart_port_remove)
         btn_uart_port_remove.pack(side='left', padx=5, pady=5)
@@ -150,6 +174,42 @@ class GUI:
         btn_uart_port_clear = ttk.Button(frame_hci_uart_list, text="Clear", command=self.hci_uart_port_remove_all)
         btn_uart_port_clear.pack(side='left', padx=5, pady=5)
 
+    def tx_trigger_validate(self, value):
+        value_str = value
+
+        if value_str == '':
+            return True
+
+        try:
+            value_str = [x for x in value_str.split(' ')]
+            if value_str[-1] == '':
+                value_str.pop()
+            values = [int(x, 16) for x in value_str]
+
+            if len(values) > 0 and all(0 <= x <= 255 for x in values):
+                return True
+        except:
+            return False
+    
+        return False
+
+    def rx_trigger_validate(self, value):
+        value_str = value
+
+        if value_str == '':
+            return True
+
+        try:
+            value_str = [x for x in value_str.split(' ')]
+            if value_str[-1] == '':
+                value_str.pop()
+            values = [int(x, 16) for x in value_str]
+            if len(values) > 0 and all(0 <= x <= 255 for x in values):
+                return True
+        except:
+            return False
+    
+        return False
 
     def __ui_save_config(self, root):
         # Save Options
@@ -194,8 +254,10 @@ class GUI:
         tx   = int(self.combo_hci_uart_port_selector_tx.get())
         rx   = int(self.combo_hci_uart_port_selector_rx.get())
         baudrate = int(self.entry_hci_uart_port_baudrate.get())
+        tx_trigger = self.tx_trigger_frame_var.get() if self.tx_trigger.get() else None
+        rx_trigger = self.rx_trigger_frame_var.get() if self.rx_trigger.get() else None
 
-        new_config = f"{name}: tx {tx}, rx {rx}, rate {baudrate}"
+        new_config = f"{name}: tx {tx}, rx {rx}, rate {baudrate}, tx_trigger {tx_trigger}, rx_trigger {rx_trigger}"
 
         # skip if duplicate
         for i in range(self.hci_uart_listbox.size()):
@@ -258,7 +320,8 @@ class GUI:
         for index in range(self.hci_uart_listbox.size()):
             config_str = self.hci_uart_listbox.get(index)
 
-            res = re.findall(r"(\w+): tx (\d+), rx (\d+), rate (\d+)", config_str)
+            # f"{name}: tx {tx}, rx {rx}, rate {baudrate}, tx_trigger {tx_trigger}, rx_trigger {rx_trigger}"
+            res = re.findall(r"(\w+): tx (\d+), rx (\d+), rate (\d+), tx_trigger (.*?), rx_trigger (.*+)", config_str)
             if res == []:
                 continue
 
@@ -268,8 +331,10 @@ class GUI:
             tx   = int(res[1])
             rx   = int(res[2])
             rate = int(res[3])
+            tx_trigger = res[4] if res[4] != 'None' else ''
+            rx_trigger = res[5] if res[5] != 'None' else ''
 
-            self.analyzer.export_btsnoop(name, tx_channel=tx, rx_channel=rx, bit_rate=rate)
+            self.analyzer.export_btsnoop(name, tx_channel=tx, rx_channel=rx, bit_rate=rate, trigger_frame_tx=tx_trigger, trigger_frame_rx=rx_trigger)
         
             info += f"{name} btsnoop generated!\n"
 
