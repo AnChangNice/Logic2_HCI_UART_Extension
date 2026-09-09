@@ -142,6 +142,12 @@ class Logic2_Analyzer:
 
         HCI_UART_PATH = os.path.dirname(__file__) + '/HCI_UART'
 
+        # Feed both wires the TX and RX triggers joined with '|'. A wire fires on
+        # whichever pattern its packets actually match, so the trigger keeps working
+        # even when the TX/RX probes are swapped.
+        combined_trigger = " | ".join(t for t in (trigger_frame_tx, trigger_frame_rx) if t)
+        decode_mode = "Always" if combined_trigger == "" else "Trigger"
+
         hci_tx = self.capture.add_high_level_analyzer(
             extension_directory=HCI_UART_PATH,
             name="UART HCI",
@@ -149,8 +155,11 @@ class Logic2_Analyzer:
             settings={
                 "input analyzer": f"{name}_UART_TX",
                 "s1_role_choice": "Host->Controller",
-                "s2_decode_mode": "Always" if trigger_frame_tx == "" else "Trigger",
-                "s3_decode_trigger_frame": trigger_frame_tx,
+                "s2_decode_mode": decode_mode,
+                "s3_decode_trigger_frame": combined_trigger,
+                "s4_direction_mode": "Auto",
+                "s5_sync_packets": 3,
+                "s6_trigger_rearm": "On Resync",
                 "show in protocol results table": True
             },
             label=f"{name}_HCI_TX"
@@ -163,8 +172,11 @@ class Logic2_Analyzer:
             settings={
                 "input analyzer": f"{name}_UART_RX",
                 "s1_role_choice": "Controller->Host",
-                "s2_decode_mode": "Always" if trigger_frame_rx == "" else "Trigger",
-                "s3_decode_trigger_frame": trigger_frame_rx,
+                "s2_decode_mode": decode_mode,
+                "s3_decode_trigger_frame": combined_trigger,
+                "s4_direction_mode": "Auto",
+                "s5_sync_packets": 3,
+                "s6_trigger_rearm": "On Resync",
                 "show in protocol results table": True
             },
             label=f"{name}_HCI_RX"

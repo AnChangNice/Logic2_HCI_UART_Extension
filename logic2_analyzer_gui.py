@@ -2,8 +2,11 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
 import re
+import json
 
 from logic2_analyzer import Logic2_Analyzer
+
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gui_config.json')
 
 class GUI:
     def __init__(self, root):
@@ -22,6 +25,10 @@ class GUI:
         self.__ui_analyzer_config(root)
         self.__ui_save_config(root)
         self.__ui_capture_control(root)
+
+        self._loading = False
+        self.load_config()
+        self.__setup_autosave()
 
 
     def __ui_capture_config(self, root):
@@ -175,41 +182,27 @@ class GUI:
         btn_uart_port_clear.pack(side='left', padx=5, pady=5)
 
     def tx_trigger_validate(self, value):
-        value_str = value
-
-        if value_str == '':
-            return True
-
-        try:
-            value_str = [x for x in value_str.split(' ')]
-            if value_str[-1] == '':
-                value_str.pop()
-            values = [int(x, 16) for x in value_str]
-
-            if len(values) > 0 and all(0 <= x <= 255 for x in values):
-                return True
-        except:
-            return False
-    
-        return False
+        return self._trigger_validate(value)
 
     def rx_trigger_validate(self, value):
-        value_str = value
+        return self._trigger_validate(value)
 
-        if value_str == '':
+    def _trigger_validate(self, value):
+        # Accept hex bytes, '|' to separate alternative patterns, and '??' wildcards.
+        if value == '':
             return True
 
         try:
-            value_str = [x for x in value_str.split(' ')]
-            if value_str[-1] == '':
-                value_str.pop()
-            values = [int(x, 16) for x in value_str]
-            if len(values) > 0 and all(0 <= x <= 255 for x in values):
-                return True
-        except:
+            for chunk in value.split('|'):
+                tokens = [t for t in chunk.split(' ') if t != '']
+                for t in tokens:
+                    if t in ('?', '??'):
+                        continue
+                    if not (0 <= int(t, 16) <= 255):
+                        return False
+            return True
+        except ValueError:
             return False
-    
-        return False
 
     def __ui_save_config(self, root):
         # Save Options
@@ -268,21 +261,24 @@ class GUI:
 
         index = self.hci_uart_listbox.size() + 1
         self.hci_uart_listbox.insert(index, new_config)
+        self.save_config()
 
     def hci_uart_port_remove(self):
-        
+
         select = self.hci_uart_listbox.curselection()
 
         if select == ():
             return
-        
+
         index = select[0]
 
         self.hci_uart_listbox.delete(index)
+        self.save_config()
 
     def hci_uart_port_remove_all(self):
         for _ in range(self.hci_uart_listbox.size()):
             self.hci_uart_listbox.delete(0)
+        self.save_config()
 
     def select_folder(self):
         new_fodler = filedialog.askdirectory(initialdir=self.save_folder.get())
@@ -356,8 +352,107 @@ class GUI:
     # def get_analog_sample_rate(self):
     #     return int(self.analog_sample_rate.get())
 
+    def __setup_autosave(self):
+        """Save the config automatically whenever a tracked setting changes"""
+        for var in self.digital_channels:
+            var.trace_add('write', self._on_config_changed)
+
+        self.digital_sample_rate.trace_add('write', self._on_config_changed)
+        self.save_folder.trace_add('write', self._on_config_changed)
+        self.tx_trigger.trace_add('write', self._on_config_changed)
+        self.rx_trigger.trace_add('write', self._on_config_changed)
+        self.tx_trigger_frame_var.trace_add('write', self._on_config_changed)
+        self.rx_trigger_frame_var.trace_add('write', self._on_config_changed)
+
+        self.entry_hci_uart_port_name.bind('<KeyRelease>', self._on_config_changed)
+        self.entry_hci_uart_port_baudrate.bind('<KeyRelease>', self._on_config_changed)
+        self.combo_hci_uart_port_selector_tx.bind('<<ComboboxSelected>>', self._on_config_changed)
+        self.combo_hci_uart_port_selector_rx.bind('<<ComboboxSelected>>', self._on_config_changed)
+
+    def _on_config_changed(self, *args):
+        self.save_config()
+
+    def save_config(self):
+        """Persist current UI settings to CONFIG_FILE"""
+        if self._loading:
+            return
+
+        config = {
+            'digital_channels': [var.get() for var in self.digital_channels],
+            'digital_sample_rate': self.digital_sample_rate.get(),
+            'save_folder': self.save_folder.get(),
+            'hci_uart_list': [self.hci_uart_listbox.get(i) for i in range(self.hci_uart_listbox.size())],
+            'hci_uart_form': {
+                'name': self.entry_hci_uart_port_name.get(),
+                'tx': self.combo_hci_uart_port_selector_tx.get(),
+                'rx': self.combo_hci_uart_port_selector_rx.get(),
+                'baudrate': self.entry_hci_uart_port_baudrate.get(),
+                'tx_trigger_enabled': self.tx_trigger.get(),
+                'tx_trigger_frame': self.tx_trigger_frame_var.get(),
+                'rx_trigger_enabled': self.rx_trigger.get(),
+                'rx_trigger_frame': self.rx_trigger_frame_var.get(),
+            },
+        }
+
+        try:
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+        except OSError as e:
+            print(f"Failed to save config: {e}")
+
+    def load_config(self):
+        """Restore UI settings from CONFIG_FILE, if present"""
+        if not os.path.exists(CONFIG_FILE):
+            return
+
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"Failed to load config: {e}")
+            return
+
+        self._loading = True
+
+        try:
+            digital_channels = config.get('digital_channels', [])
+            for var, value in zip(self.digital_channels, digital_channels):
+                var.set(value)
+
+            if 'digital_sample_rate' in config:
+                self.digital_sample_rate.set(config['digital_sample_rate'])
+
+            if 'save_folder' in config:
+                self.save_folder.set(config['save_folder'])
+
+            if 'hci_uart_list' in config:
+                self.hci_uart_port_remove_all()
+                for item in config['hci_uart_list']:
+                    self.hci_uart_listbox.insert(tk.END, item)
+
+            form = config.get('hci_uart_form', {})
+            if form:
+                self.entry_hci_uart_port_name.delete(0, tk.END)
+                self.entry_hci_uart_port_name.insert(0, form.get('name', ''))
+
+                self.combo_hci_uart_port_selector_tx.set(form.get('tx', ''))
+                self.combo_hci_uart_port_selector_rx.set(form.get('rx', ''))
+
+                self.entry_hci_uart_port_baudrate.delete(0, tk.END)
+                self.entry_hci_uart_port_baudrate.insert(0, form.get('baudrate', ''))
+
+                self.tx_trigger.set(form.get('tx_trigger_enabled', False))
+                self.tx_trigger_frame_var.set(form.get('tx_trigger_frame', self.tx_trigger_frame_var.get()))
+
+                self.rx_trigger.set(form.get('rx_trigger_enabled', False))
+                self.rx_trigger_frame_var.set(form.get('rx_trigger_frame', self.rx_trigger_frame_var.get()))
+        finally:
+            self._loading = False
+
     def on_closing(self):
         """Handle application closing, perform cleanup if necessary"""
+        # Save current settings
+        self.save_config()
         # Close the main window
         self.root.destroy()
         # Close Analyzer
